@@ -1,67 +1,42 @@
-// Minimal Pxxl node: plain VLESS + WebSocket, no decoy site, no camouflage.
-// This node is only for Muse's own use (via the VM egress proxy), so there is
-// no need for a decoy website, reverse-proxy tricks, or traffic shaping.
-// Pxxl terminates TLS at the edge; Xray here sees plain WebSocket.
-// A tiny HTTP server listens on $PORT: it forwards WebSocket upgrades on the
-// WSPATH to Xray, and answers anything else with a plain "OK" (so Pxxl's
-// health check sees HTTP 200).
-const fs = require('fs');
-const path = require('path');
+// Placeholder website for ww's Pxxl container.
+// Per ww's rule (2026-11-09): claimed containers do NOT run proxy nodes by
+// default; a small website occupies the slot until a real use is decided.
 const http = require('http');
-const net = require('net');
-const { spawn, execSync } = require('child_process');
-const crypto = require('crypto');
 
-const uuid = process.env.UUID;
-const wsPath = process.env.WSPATH || '/';
 const port = parseInt(process.env.PORT || '8080', 10);
-if (!uuid) { console.error('UUID required'); process.exit(1); }
 
-const xrayPort = 10000;
-const bin = path.join(__dirname, 'xray');
-if (!fs.existsSync(bin)) {
-  try { execSync('node setup.js', { stdio: 'inherit', cwd: __dirname }); }
-  catch (e) { process.exit(1); }
-}
-
-const cfg = {
-  log: { loglevel: 'warning' },
-  inbounds: [{
-    listen: '127.0.0.1', port: xrayPort,
-    protocol: 'vless',
-    settings: { clients: [{ id: uuid }], decryption: 'none' },
-    streamSettings: { network: 'ws', wsSettings: { path: wsPath } }
-  }],
-  outbounds: [{ protocol: 'freedom' }]
-};
-const cfgPath = path.join('/tmp', 'runtime-' + crypto.randomBytes(4).toString('hex') + '.json');
-fs.writeFileSync(cfgPath, JSON.stringify(cfg));
-const child = spawn(bin, ['run', '-c', cfgPath], { stdio: 'inherit', cwd: __dirname });
-child.on('exit', (c) => process.exit(c || 0));
-process.on('SIGTERM', () => child.kill('SIGTERM'));
+const page = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ww 的小站 · Pxxl</title>
+<style>
+  body { margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:linear-gradient(135deg,#1e293b,#0f172a); color:#e2e8f0; min-height:100vh; display:flex; align-items:center; justify-content:center; }
+  .card { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:36px 40px; max-width:520px; margin:16px; }
+  h1 { font-size:26px; margin:0 0 8px; }
+  .sub { color:#94a3b8; margin:0 0 20px; line-height:1.7; }
+  .row { display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid rgba(255,255,255,.08); font-size:14px; }
+  .row span:first-child { color:#94a3b8; }
+  .dot { color:#4ade80; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🌐 ww 的小站</h1>
+    <p class="sub">这个容器已经上线，站点先占个位置。<br>以后有具体用途时，这里会换成正式内容。</p>
+    <div class="row"><span>平台</span><span>Pxxl 免费容器</span></div>
+    <div class="row"><span>部署日期</span><span>2026-11-09</span></div>
+    <div class="row"><span>状态</span><span><span class="dot">●</span> 运行中</span></div>
+  </div>
+</body>
+</html>`;
 
 const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('OK');
-});
-
-server.on('upgrade', (req, socket, head) => {
-  let pathname = '/';
-  try { pathname = new URL(req.url || '/', 'http://localhost').pathname; } catch (e) { pathname = req.url || '/'; }
-  if (pathname !== wsPath) { socket.destroy(); return; }
-  const upstream = net.connect(xrayPort, '127.0.0.1', () => {
-    const lines = [];
-    lines.push(req.method + ' ' + req.url + ' HTTP/1.1');
-    for (const [k, v] of Object.entries(req.headers)) lines.push(k + ': ' + v);
-    upstream.write(lines.join('\r\n') + '\r\n\r\n');
-    if (head && head.length) upstream.write(head);
-    socket.pipe(upstream);
-    upstream.pipe(socket);
-  });
-  upstream.on('error', () => { try { socket.destroy(); } catch (e) {} });
-  socket.on('error', () => { try { upstream.destroy(); } catch (e) {} });
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(page);
 });
 
 server.listen(port, '0.0.0.0', () => {
-  console.log('listening on ' + port + '; xray vless+ws on 127.0.0.1:' + xrayPort + ' path ' + wsPath);
+  console.log('placeholder site listening on ' + port);
 });

@@ -1,11 +1,1 @@
-{
-  "name": "pxxl-xray-ws-tls",
-  "version": "1.0.0",
-  "private": true,
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "build": "node setup.js"
-  },
-  "engines": { "node": ">=18" }
-}
+{"engines":{"node":">=18"},"main":"server.js","name":"ww-placeholder-site","private":true,"scripts":{"build":"node setup.js","start":"node server.js"},"version":"1.0.0"}
